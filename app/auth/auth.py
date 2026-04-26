@@ -1,8 +1,11 @@
 from datetime import datetime, timedelta
 from typing import Optional
-from fastapi import Depends, HTTPException, status
+import uuid
+
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from jose import JWTError, jwt
+import jwt
+from jwt.exceptions import PyJWTError
 from passlib.context import CryptContext
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -26,20 +29,44 @@ def verify_password(plain: str, hashed: str) -> bool:
     return pwd_context.verify(plain, hashed)
 
 
-# ─── JWT helpers ─────────────────────────────────────────────────────────────
+# ─── JWT helpers (#6a — claims robustos: iss, aud, iat, jti) ─────────────────
 
 def create_access_token(data: dict) -> str:
+    """Genera un JWT con claims de seguridad estándar.
+
+    Claims incluidos:
+      - sub: ID del usuario
+      - exp: fecha de expiración
+      - iat: fecha de emisión (issued at)
+      - iss: emisor del token (issuer)
+      - aud: audiencia del token (audience)
+      - jti: identificador único del token (JWT ID) — previene replay attacks
+    """
     to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode.update({"exp": expire})
+    now = datetime.utcnow()
+    expire = now + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({
+        "exp": expire,
+        "iat": now,                          # Fecha de emisión
+        "iss": "techsolutions-api",          # Emisor
+        "aud": "techsolutions-frontend",     # Audiencia
+        "jti": str(uuid.uuid4()),            # ID único del token
+    })
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
 def decode_token(token: str) -> dict:
+    """Decodifica y valida un JWT, verificando issuer y audience."""
     try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        payload = jwt.decode(
+            token,
+            settings.SECRET_KEY,
+            algorithms=[settings.ALGORITHM],
+            audience="techsolutions-frontend",   # Validar audiencia
+            issuer="techsolutions-api",           # Validar emisor
+        )
         return payload
-    except JWTError:
+    except PyJWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token inválido o expirado",

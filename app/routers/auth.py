@@ -1,17 +1,21 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.models import Usuario, TokenRevocado
 from app.schemas.schemas import LoginRequest, TokenResponse, UsuarioOut
-from app.auth.auth import verify_password, create_access_token, get_current_user
+from app.auth.auth import verify_password, create_access_token, get_current_user, decode_token
+from app.limiter import limiter
 
 router = APIRouter(prefix="/auth", tags=["Autenticación"])
+bearer_scheme = HTTPBearer()
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
+@limiter.limit("5/minute")
+async def login(request: Request, data: LoginRequest, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Usuario).where(Usuario.correo == data.correo))
     user = result.scalar_one_or_none()
 
@@ -33,14 +37,24 @@ async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 async def logout(
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
     current_user: Usuario = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-    # We need the raw token — use a trick via request state
 ):
-    # Token is already validated by get_current_user; we just revoke it
-    # We'll handle the raw token via a custom approach in dependencies
-    # For now, this is a placeholder — the actual token revocation happens in dependencies
-    pass
+    """(#6b) Logout completo: revoca el token actual del usuario.
+    El token se agrega a la tabla de tokens revocados para invalidarlo."""
+    token = credentials.credentials
+
+    # Verificar si ya fue revocado
+    existing = await db.execute(
+        select(TokenRevocado).where(TokenRevocado.token == token)
+    )
+    if existing.scalar_one_or_none():
+        return  # Ya estaba revocado
+
+    revoked = TokenRevocado(token=token, id_usuario=current_user.id_usuario)
+    db.add(revoked)
+    await db.commit()
 
 
 @router.post("/logout/token", status_code=status.HTTP_204_NO_CONTENT)
@@ -58,10 +72,13 @@ async def logout_with_token(
         return  # Already revoked
 
     # Decode to get user_id (don't raise if expired)
-    from jose import jwt
+    import jwt
     from app.config import settings
     try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        payload = jwt.decode(
+            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM],
+            audience="techsolutions-frontend", issuer="techsolutions-api",
+        )
         user_id = int(payload.get("sub", 0))
     except Exception:
         raise HTTPException(status_code=401, detail="Token inválido")

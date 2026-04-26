@@ -77,8 +77,12 @@ async def update_proyecto(
     if not proyecto:
         raise HTTPException(status_code=404, detail="Proyecto no encontrado")
 
+    # (#7) Mass Assignment: solo permitir campos explícitos, excluir los inmutables
+    ALLOWED_UPDATE_FIELDS = {"nombre", "descripcion", "fecha_inicio", "fecha_fin", "id_cliente", "id_estado"}
     old_estado = proyecto.id_estado
     for field, value in data.model_dump(exclude_none=True).items():
+        if field not in ALLOWED_UPDATE_FIELDS:
+            continue
         setattr(proyecto, field, value)
 
     if data.id_estado and data.id_estado != old_estado:

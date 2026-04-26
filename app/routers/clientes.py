@@ -71,8 +71,12 @@ async def update_cliente(
     if not cliente:
         raise HTTPException(status_code=404, detail="Cliente no encontrado")
 
+    # (#7) Mass Assignment: solo permitir campos explícitos, excluir los inmutables
+    ALLOWED_UPDATE_FIELDS = {"nombre", "correo", "telefono", "empresa", "id_estado"}
     old_estado = cliente.id_estado
     for field, value in data.model_dump(exclude_none=True).items():
+        if field not in ALLOWED_UPDATE_FIELDS:
+            continue
         setattr(cliente, field, value)
 
     # Track state change

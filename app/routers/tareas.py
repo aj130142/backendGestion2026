@@ -108,8 +108,12 @@ async def update_tarea(
             if proyecto.fecha_fin and new_end and new_end > proyecto.fecha_fin:
                 raise HTTPException(status_code=400, detail=f"La fecha de fin ({new_end}) es posterior a la del proyecto ({proyecto.fecha_fin})")
 
+    # (#7) Mass Assignment: solo permitir campos explícitos, excluir los inmutables
+    ALLOWED_UPDATE_FIELDS = {"nombre", "descripcion", "id_proyecto", "id_prioridad", "id_estado", "fecha_inicio", "fecha_fin"}
     old_estado = tarea.id_estado
     for field, value in data.model_dump(exclude_none=True).items():
+        if field not in ALLOWED_UPDATE_FIELDS:
+            continue
         setattr(tarea, field, value)
 
     if data.id_estado and data.id_estado != old_estado:
