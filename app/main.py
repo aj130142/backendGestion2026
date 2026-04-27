@@ -14,7 +14,8 @@ from slowapi.middleware import SlowAPIMiddleware
 from app.routers import auth, usuarios, clientes, proyectos, tareas, historial, catalogos, permisos
 from app.database import get_db
 from app.config import settings
-from starlette.middleware.proxy_headers import ProxyHeadersMiddleware
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
+
 
 # ─── Logging ──────────────────────────────────────────────────────────────────
 logger = logging.getLogger("techsolutions")
