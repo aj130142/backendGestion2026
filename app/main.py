@@ -14,6 +14,7 @@ from slowapi.middleware import SlowAPIMiddleware
 from app.routers import auth, usuarios, clientes, proyectos, tareas, historial, catalogos, permisos
 from app.database import get_db
 from app.config import settings
+from starlette.middleware.proxy_headers import ProxyHeadersMiddleware
 
 # ─── Logging ──────────────────────────────────────────────────────────────────
 logger = logging.getLogger("techsolutions")
@@ -98,6 +99,9 @@ app.add_middleware(SlowAPIMiddleware)
 
 # ─── Middleware: Security Headers (#10 / #14) ─────────────────────────────────
 app.add_middleware(SecurityHeadersMiddleware)
+
+# ─── Middleware: Proxy Headers (Soporte HTTPS en Railway) ─────────────────────
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 
 # ─── Middleware: CORS seguro (#3 — restringir orígenes) ───────────────────────
 app.add_middleware(
