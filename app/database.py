@@ -2,10 +2,13 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sess
 from sqlalchemy.orm import DeclarativeBase
 from app.config import settings
 
+import uuid
+
 engine = create_async_engine(
     settings.DATABASE_URL, 
     echo=False,
     connect_args={
+        "prepared_statement_name_func": lambda: f"__asyncpg_{uuid.uuid4()}__",
         "prepared_statement_cache_size": 0,
         "statement_cache_size": 0
     }
