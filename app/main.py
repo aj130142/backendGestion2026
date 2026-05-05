@@ -107,9 +107,9 @@ app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 # ─── Middleware: CORS seguro (#3 — restringir orígenes) ───────────────────────
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
