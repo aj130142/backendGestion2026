@@ -71,6 +71,7 @@ class ClienteCreate(BaseModel):
     telefono: Optional[str] = None
     empresa: Optional[str] = None
     id_estado: int
+    password: Optional[str] = None
 
 class ClienteUpdate(BaseModel):
     nombre: Optional[str] = None

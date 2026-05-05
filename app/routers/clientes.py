@@ -6,7 +6,7 @@ from sqlalchemy.orm import selectinload
 from app.database import get_db
 from app.models.models import Cliente, HistorialEstado, Usuario
 from app.schemas.schemas import ClienteCreate, ClienteUpdate, ClienteOut
-from app.auth.auth import check_permission, get_current_user
+from app.auth.auth import check_permission, get_current_user, hash_password
 
 router = APIRouter(prefix="/clientes", tags=["Clientes"])
 
@@ -45,8 +45,23 @@ async def create_cliente(
     db: AsyncSession = Depends(get_db),
     current_user: Usuario = Depends(check_permission("clientes", "puede_crear")),
 ):
-    cliente = Cliente(**data.model_dump())
+    cliente_data = data.model_dump(exclude={"password"})
+    cliente = Cliente(**cliente_data)
     db.add(cliente)
+    
+    if data.correo and data.password:
+        res = await db.execute(select(Usuario).where(Usuario.correo == data.correo))
+        existing_user = res.scalars().first()
+        if not existing_user:
+            nuevo_usuario = Usuario(
+                nombre=data.nombre,
+                correo=data.correo,
+                password_hash=hash_password(data.password),
+                id_rol=3,
+                activo=True
+            )
+            db.add(nuevo_usuario)
+
     await db.commit()
     await db.refresh(cliente)
     
