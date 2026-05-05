@@ -16,12 +16,20 @@ async def list_proyectos(
     db: AsyncSession = Depends(get_db),
     current_user: Usuario = Depends(check_permission("proyectos", "puede_ver")),
 ):
-    result = await db.execute(
-        select(Proyecto).options(
-            selectinload(Proyecto.estado),
-            selectinload(Proyecto.cliente).selectinload(Cliente.estado),
-        )
+    query = select(Proyecto).options(
+        selectinload(Proyecto.estado),
+        selectinload(Proyecto.cliente).selectinload(Cliente.estado),
     )
+
+    if current_user.id_rol == 3:
+        res_cliente = await db.execute(select(Cliente).where(Cliente.correo == current_user.correo))
+        cliente_actual = res_cliente.scalars().first()
+        if cliente_actual:
+            query = query.where(Proyecto.id_cliente == cliente_actual.id_cliente)
+        else:
+            query = query.where(Proyecto.id_cliente == -1)
+
+    result = await db.execute(query)
     return result.scalars().all()
 
 
@@ -29,13 +37,21 @@ async def list_proyectos(
 async def get_proyecto(
     id_proyecto: int,
     db: AsyncSession = Depends(get_db),
-    _: Usuario = Depends(check_permission("proyectos", "puede_ver")),
+    current_user: Usuario = Depends(check_permission("proyectos", "puede_ver")),
 ):
-    result = await db.execute(
-        select(Proyecto)
-        .options(selectinload(Proyecto.estado), selectinload(Proyecto.cliente).selectinload(Cliente.estado))
-        .where(Proyecto.id_proyecto == id_proyecto)
-    )
+    query = select(Proyecto).options(
+        selectinload(Proyecto.estado), selectinload(Proyecto.cliente).selectinload(Cliente.estado)
+    ).where(Proyecto.id_proyecto == id_proyecto)
+
+    if current_user.id_rol == 3:
+        res_cliente = await db.execute(select(Cliente).where(Cliente.correo == current_user.correo))
+        cliente_actual = res_cliente.scalars().first()
+        if cliente_actual:
+            query = query.where(Proyecto.id_cliente == cliente_actual.id_cliente)
+        else:
+            query = query.where(Proyecto.id_cliente == -1)
+
+    result = await db.execute(query)
     proyecto = result.scalar_one_or_none()
     if not proyecto:
         raise HTTPException(status_code=404, detail="Proyecto no encontrado")

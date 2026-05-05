@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
-from app.models.models import Tarea, TareaUsuario, HistorialEstado, Usuario, Proyecto
+from app.models.models import Tarea, TareaUsuario, HistorialEstado, Usuario, Proyecto, Cliente
 from app.schemas.schemas import TareaCreate, TareaUpdate, TareaOut, AsignarUsuariosRequest
 from app.auth.auth import check_permission
 
@@ -14,15 +14,23 @@ router = APIRouter(prefix="/tareas", tags=["Tareas"])
 @router.get("/", response_model=list[TareaOut])
 async def list_tareas(
     db: AsyncSession = Depends(get_db),
-    _: Usuario = Depends(check_permission("tareas", "puede_ver")),
+    current_user: Usuario = Depends(check_permission("tareas", "puede_ver")),
 ):
-    result = await db.execute(
-        select(Tarea).options(
-            selectinload(Tarea.estado),
-            selectinload(Tarea.prioridad),
-            selectinload(Tarea.usuarios).selectinload(TareaUsuario.usuario).selectinload(Usuario.rol),
-        )
+    query = select(Tarea).options(
+        selectinload(Tarea.estado),
+        selectinload(Tarea.prioridad),
+        selectinload(Tarea.usuarios).selectinload(TareaUsuario.usuario).selectinload(Usuario.rol),
     )
+
+    if current_user.id_rol == 3:
+        res_cliente = await db.execute(select(Cliente).where(Cliente.correo == current_user.correo))
+        cliente_actual = res_cliente.scalars().first()
+        if cliente_actual:
+            query = query.join(Proyecto).where(Proyecto.id_cliente == cliente_actual.id_cliente)
+        else:
+            query = query.where(Tarea.id_tarea == -1)
+
+    result = await db.execute(query)
     return result.scalars().all()
 
 
@@ -30,17 +38,23 @@ async def list_tareas(
 async def get_tarea(
     id_tarea: int,
     db: AsyncSession = Depends(get_db),
-    _: Usuario = Depends(check_permission("tareas", "puede_ver")),
+    current_user: Usuario = Depends(check_permission("tareas", "puede_ver")),
 ):
-    result = await db.execute(
-        select(Tarea)
-        .options(
-            selectinload(Tarea.estado), 
-            selectinload(Tarea.prioridad),
-            selectinload(Tarea.usuarios).selectinload(TareaUsuario.usuario).selectinload(Usuario.rol)
-        )
-        .where(Tarea.id_tarea == id_tarea)
-    )
+    query = select(Tarea).options(
+        selectinload(Tarea.estado), 
+        selectinload(Tarea.prioridad),
+        selectinload(Tarea.usuarios).selectinload(TareaUsuario.usuario).selectinload(Usuario.rol)
+    ).where(Tarea.id_tarea == id_tarea)
+
+    if current_user.id_rol == 3:
+        res_cliente = await db.execute(select(Cliente).where(Cliente.correo == current_user.correo))
+        cliente_actual = res_cliente.scalars().first()
+        if cliente_actual:
+            query = query.join(Proyecto).where(Proyecto.id_cliente == cliente_actual.id_cliente)
+        else:
+            query = query.where(Tarea.id_tarea == -1)
+
+    result = await db.execute(query)
     tarea = result.scalar_one_or_none()
     if not tarea:
         raise HTTPException(status_code=404, detail="Tarea no encontrada")
