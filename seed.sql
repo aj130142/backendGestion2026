@@ -29,6 +29,10 @@ ON CONFLICT (nombre) DO NOTHING;
 INSERT INTO modulos (nombre) VALUES ('clientes'), ('proyectos'), ('tareas'), ('usuarios')
 ON CONFLICT (nombre) DO NOTHING;
 
+-- Roles base (incluyendo Cliente)
+INSERT INTO roles (nombre_rol) VALUES ('Administrador'), ('Usuario'), ('Cliente')
+ON CONFLICT (nombre_rol) DO NOTHING;
+
 -- Permisos: Administrador (id_rol=1) tiene acceso total a todo
 INSERT INTO rol_permisos (id_rol, id_modulo, puede_ver, puede_crear, puede_editar, puede_eliminar)
 SELECT 1, id_modulo, TRUE, TRUE, TRUE, TRUE FROM modulos
@@ -47,6 +51,18 @@ SELECT 2, id_modulo, FALSE, FALSE, FALSE, FALSE FROM modulos WHERE nombre = 'usu
 ON CONFLICT (id_rol, id_modulo) DO UPDATE SET
   puede_ver = FALSE, puede_crear = FALSE, puede_editar = FALSE, puede_eliminar = FALSE;
 
+-- Permisos: Cliente (id_rol=3) puede VER clientes, proyectos y tareas (solo lectura)
+INSERT INTO rol_permisos (id_rol, id_modulo, puede_ver, puede_crear, puede_editar, puede_eliminar)
+SELECT 3, id_modulo, TRUE, FALSE, FALSE, FALSE FROM modulos WHERE nombre IN ('clientes', 'proyectos', 'tareas')
+ON CONFLICT (id_rol, id_modulo) DO UPDATE SET
+  puede_ver = TRUE, puede_crear = FALSE, puede_editar = FALSE, puede_eliminar = FALSE;
+
+-- Cliente (id_rol=3) NO puede ver/gestionar el módulo usuarios
+INSERT INTO rol_permisos (id_rol, id_modulo, puede_ver, puede_crear, puede_editar, puede_eliminar)
+SELECT 3, id_modulo, FALSE, FALSE, FALSE, FALSE FROM modulos WHERE nombre = 'usuarios'
+ON CONFLICT (id_rol, id_modulo) DO UPDATE SET
+  puede_ver = FALSE, puede_crear = FALSE, puede_editar = FALSE, puede_eliminar = FALSE;
+
 -- Usuario administrador inicial (password: Admin1234!)
 -- IMPORTANTE: Cambiar o eliminar en producción
 INSERT INTO usuarios (nombre, correo, password_hash, id_rol)
@@ -56,3 +72,4 @@ VALUES (
   '$2b$12$Z0H7M51fJkP.0G2G5zX7lOPjOhV4qD1mO/O7Qc3f6oR68lR2R/VWG',  -- Admin1234!
   1
 ) ON CONFLICT (correo) DO NOTHING;
+

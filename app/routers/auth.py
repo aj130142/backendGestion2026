@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models.models import Usuario, TokenRevocado
+from app.models.models import Usuario, TokenRevocado, RolPermiso, Modulo
 from app.schemas.schemas import LoginRequest, TokenResponse, UsuarioOut
 from app.auth.auth import verify_password, create_access_token, get_current_user, decode_token
 from app.limiter import limiter
@@ -91,3 +92,35 @@ async def logout_with_token(
 @router.get("/me", response_model=UsuarioOut)
 async def get_me(current_user: Usuario = Depends(get_current_user)):
     return current_user
+
+
+@router.get("/me/permisos")
+async def get_my_permisos(
+    current_user: Usuario = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Devuelve los permisos del usuario actual indexados por nombre de módulo.
+    
+    Respuesta:
+    {
+      "clientes":  {"ver": true, "crear": true, "editar": true, "eliminar": false},
+      "proyectos": {...},
+      ...
+    }
+    """
+    result = await db.execute(
+        select(RolPermiso)
+        .options(selectinload(RolPermiso.modulo))
+        .where(RolPermiso.id_rol == current_user.id_rol)
+    )
+    permisos = result.scalars().all()
+
+    return {
+        p.modulo.nombre: {
+            "ver":      p.puede_ver,
+            "crear":    p.puede_crear,
+            "editar":   p.puede_editar,
+            "eliminar": p.puede_eliminar,
+        }
+        for p in permisos
+    }
