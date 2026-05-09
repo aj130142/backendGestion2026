@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
-from app.models.models import Proyecto, ProyectoUsuario, HistorialEstado, Usuario, Cliente
-from app.schemas.schemas import ProyectoCreate, ProyectoUpdate, ProyectoOut, AsignarUsuariosRequest
+from app.models.models import Proyecto, ProyectoUsuario, HistorialEstado, Usuario, Cliente, Tarea, Estado
+from app.schemas.schemas import ProyectoCreate, ProyectoUpdate, ProyectoOut, AsignarUsuariosRequest, StatusCount
 from app.auth.auth import check_permission, get_current_user
 
 router = APIRouter(prefix="/proyectos", tags=["Proyectos"])
@@ -169,3 +169,37 @@ async def get_proyecto_usuarios(
         select(ProyectoUsuario.id_usuario).where(ProyectoUsuario.id_proyecto == id_proyecto)
     )
     return [row[0] for row in result.all()]
+
+
+@router.get("/{id_proyecto}/tareas/stats", response_model=list[StatusCount])
+async def get_proyecto_tareas_stats(
+    id_proyecto: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: Usuario = Depends(check_permission("proyectos", "puede_ver")),
+):
+    # Verify access to project (reusing client filtering logic)
+    query = select(Proyecto).where(Proyecto.id_proyecto == id_proyecto)
+    if current_user.id_rol == 3:
+        res_cliente = await db.execute(select(Cliente).where(Cliente.correo == current_user.correo))
+        cliente_actual = res_cliente.scalars().first()
+        if cliente_actual:
+            query = query.where(Proyecto.id_cliente == cliente_actual.id_cliente)
+        else:
+            query = query.where(Proyecto.id_cliente == -1)
+    
+    res_proj = await db.execute(query)
+    project_exists = res_proj.scalar_one_or_none()
+    if not project_exists:
+        raise HTTPException(status_code=404, detail="Proyecto no encontrado o sin acceso")
+
+    # Group tasks by status - Using select_from(Tarea) for clarity
+    stmt = (
+        select(Estado.nombre.label("estado"), func.count(Tarea.id_tarea).label("cantidad"))
+        .select_from(Tarea)
+        .join(Estado, Tarea.id_estado == Estado.id_estado)
+        .where(Tarea.id_proyecto == id_proyecto)
+        .where(Estado.entidad == "tarea") # Ensure we only get task statuses
+        .group_by(Estado.nombre)
+    )
+    result = await db.execute(stmt)
+    return [{"estado": row.estado, "cantidad": row.cantidad} for row in result.all()]

@@ -13,6 +13,7 @@ router = APIRouter(prefix="/tareas", tags=["Tareas"])
 
 @router.get("/", response_model=list[TareaOut])
 async def list_tareas(
+    id_proyecto: int = None,
     db: AsyncSession = Depends(get_db),
     current_user: Usuario = Depends(check_permission("tareas", "puede_ver")),
 ):
@@ -29,6 +30,9 @@ async def list_tareas(
             query = query.join(Proyecto).where(Proyecto.id_cliente == cliente_actual.id_cliente)
         else:
             query = query.where(Tarea.id_tarea == -1)
+
+    if id_proyecto:
+        query = query.where(Tarea.id_proyecto == id_proyecto)
 
     result = await db.execute(query)
     return result.scalars().all()

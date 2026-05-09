@@ -221,3 +221,10 @@ class RolPermisoOut(RolPermisoBase):
     modulo: Optional[ModuloOut] = None
     class Config:
         from_attributes = True
+
+
+# ─── DASHBOARD / STATS ───────────────────────────────────────────────────────
+
+class StatusCount(BaseModel):
+    estado: str
+    cantidad: int
