@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
-from app.models.models import Tarea, TareaUsuario, HistorialEstado, Usuario, Proyecto, Cliente
+from app.models.models import Tarea, TareaUsuario, ProyectoUsuario, HistorialEstado, Usuario, Proyecto, Cliente
 from app.schemas.schemas import TareaCreate, TareaUpdate, TareaOut, AsignarUsuariosRequest
 from app.auth.auth import check_permission
 
@@ -30,6 +30,8 @@ async def list_tareas(
             query = query.join(Proyecto).where(Proyecto.id_cliente == cliente_actual.id_cliente)
         else:
             query = query.where(Tarea.id_tarea == -1)
+    elif current_user.id_rol == 2:
+        query = query.join(ProyectoUsuario, Tarea.id_proyecto == ProyectoUsuario.id_proyecto).where(ProyectoUsuario.id_usuario == current_user.id_usuario)
 
     if id_proyecto:
         query = query.where(Tarea.id_proyecto == id_proyecto)
@@ -57,6 +59,8 @@ async def get_tarea(
             query = query.join(Proyecto).where(Proyecto.id_cliente == cliente_actual.id_cliente)
         else:
             query = query.where(Tarea.id_tarea == -1)
+    elif current_user.id_rol == 2:
+        query = query.join(ProyectoUsuario, Tarea.id_proyecto == ProyectoUsuario.id_proyecto).where(ProyectoUsuario.id_usuario == current_user.id_usuario)
 
     result = await db.execute(query)
     tarea = result.scalar_one_or_none()

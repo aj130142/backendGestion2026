@@ -28,6 +28,8 @@ async def list_proyectos(
             query = query.where(Proyecto.id_cliente == cliente_actual.id_cliente)
         else:
             query = query.where(Proyecto.id_cliente == -1)
+    elif current_user.id_rol == 2:
+        query = query.join(ProyectoUsuario).where(ProyectoUsuario.id_usuario == current_user.id_usuario)
 
     result = await db.execute(query)
     return result.scalars().all()
@@ -50,6 +52,8 @@ async def get_proyecto(
             query = query.where(Proyecto.id_cliente == cliente_actual.id_cliente)
         else:
             query = query.where(Proyecto.id_cliente == -1)
+    elif current_user.id_rol == 2:
+        query = query.join(ProyectoUsuario).where(ProyectoUsuario.id_usuario == current_user.id_usuario)
 
     result = await db.execute(query)
     proyecto = result.scalar_one_or_none()
@@ -179,7 +183,7 @@ async def get_proyecto_tareas_stats(
     db: AsyncSession = Depends(get_db),
     current_user: Usuario = Depends(check_permission("proyectos", "puede_ver")),
 ):
-    # Verify access to project (reusing client filtering logic)
+    # Verify access to project
     query = select(Proyecto).where(Proyecto.id_proyecto == id_proyecto)
     if current_user.id_rol == 3:
         res_cliente = await db.execute(select(Cliente).where(Cliente.correo == current_user.correo))
@@ -188,19 +192,21 @@ async def get_proyecto_tareas_stats(
             query = query.where(Proyecto.id_cliente == cliente_actual.id_cliente)
         else:
             query = query.where(Proyecto.id_cliente == -1)
+    elif current_user.id_rol == 2:
+        query = query.join(ProyectoUsuario).where(ProyectoUsuario.id_usuario == current_user.id_usuario)
     
     res_proj = await db.execute(query)
     project_exists = res_proj.scalar_one_or_none()
     if not project_exists:
         raise HTTPException(status_code=404, detail="Proyecto no encontrado o sin acceso")
 
-    # Group tasks by status - Using select_from(Tarea) for clarity
+    # Group tasks by status
     stmt = (
         select(Estado.nombre.label("estado"), func.count(Tarea.id_tarea).label("cantidad"))
         .select_from(Tarea)
         .join(Estado, Tarea.id_estado == Estado.id_estado)
         .where(Tarea.id_proyecto == id_proyecto)
-        .where(Estado.entidad == "tarea") # Ensure we only get task statuses
+        .where(Estado.entidad == "tarea") 
         .group_by(Estado.nombre)
     )
     result = await db.execute(stmt)
