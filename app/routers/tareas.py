@@ -31,7 +31,7 @@ async def list_tareas(
         else:
             query = query.where(Tarea.id_tarea == -1)
     elif current_user.id_rol == 2:
-        query = query.join(ProyectoUsuario, Tarea.id_proyecto == ProyectoUsuario.id_proyecto).where(ProyectoUsuario.id_usuario == current_user.id_usuario).distinct()
+        query = query.join(TareaUsuario).where(TareaUsuario.id_usuario == current_user.id_usuario).distinct()
 
     if id_proyecto:
         query = query.where(Tarea.id_proyecto == id_proyecto)
@@ -60,7 +60,7 @@ async def get_tarea(
         else:
             query = query.where(Tarea.id_tarea == -1)
     elif current_user.id_rol == 2:
-        query = query.join(ProyectoUsuario, Tarea.id_proyecto == ProyectoUsuario.id_proyecto).where(ProyectoUsuario.id_usuario == current_user.id_usuario).distinct()
+        query = query.join(TareaUsuario).where(TareaUsuario.id_usuario == current_user.id_usuario).distinct()
 
     result = await db.execute(query)
     tarea = result.scalars().unique().one_or_none()

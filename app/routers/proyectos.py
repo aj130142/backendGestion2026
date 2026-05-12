@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
-from app.models.models import Proyecto, ProyectoUsuario, HistorialEstado, Usuario, Cliente, Tarea, Estado
+from app.models.models import Proyecto, ProyectoUsuario, TareaUsuario, HistorialEstado, Usuario, Cliente, Tarea, Estado
 from app.schemas.schemas import ProyectoCreate, ProyectoUpdate, ProyectoOut, AsignarUsuariosRequest, StatusCount
 from app.auth.auth import check_permission, get_current_user
 
@@ -29,7 +29,7 @@ async def list_proyectos(
         else:
             query = query.where(Proyecto.id_cliente == -1)
     elif current_user.id_rol == 2:
-        query = query.join(ProyectoUsuario, Proyecto.id_proyecto == ProyectoUsuario.id_proyecto).where(ProyectoUsuario.id_usuario == current_user.id_usuario).distinct()
+        query = query.join(Tarea, Proyecto.id_proyecto == Tarea.id_proyecto).join(TareaUsuario, Tarea.id_tarea == TareaUsuario.id_tarea).where(TareaUsuario.id_usuario == current_user.id_usuario).distinct()
 
     result = await db.execute(query)
     return result.scalars().unique().all()
@@ -53,7 +53,7 @@ async def get_proyecto(
         else:
             query = query.where(Proyecto.id_cliente == -1)
     elif current_user.id_rol == 2:
-        query = query.join(ProyectoUsuario, Proyecto.id_proyecto == ProyectoUsuario.id_proyecto).where(ProyectoUsuario.id_usuario == current_user.id_usuario).distinct()
+        query = query.join(Tarea, Proyecto.id_proyecto == Tarea.id_proyecto).join(TareaUsuario, Tarea.id_tarea == TareaUsuario.id_tarea).where(TareaUsuario.id_usuario == current_user.id_usuario).distinct()
 
     result = await db.execute(query)
     proyecto = result.scalars().unique().one_or_none()
@@ -193,7 +193,7 @@ async def get_proyecto_tareas_stats(
         else:
             query = query.where(Proyecto.id_cliente == -1)
     elif current_user.id_rol == 2:
-        query = query.join(ProyectoUsuario, Proyecto.id_proyecto == ProyectoUsuario.id_proyecto).where(ProyectoUsuario.id_usuario == current_user.id_usuario).distinct()
+        query = query.join(Tarea, Proyecto.id_proyecto == Tarea.id_proyecto).join(TareaUsuario, Tarea.id_tarea == TareaUsuario.id_tarea).where(TareaUsuario.id_usuario == current_user.id_usuario).distinct()
     
     res_proj = await db.execute(query)
     project_exists = res_proj.scalars().unique().one_or_none()
