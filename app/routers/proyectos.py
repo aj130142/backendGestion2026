@@ -29,10 +29,10 @@ async def list_proyectos(
         else:
             query = query.where(Proyecto.id_cliente == -1)
     elif current_user.id_rol == 2:
-        query = query.join(ProyectoUsuario).where(ProyectoUsuario.id_usuario == current_user.id_usuario)
+        query = query.join(ProyectoUsuario, Proyecto.id_proyecto == ProyectoUsuario.id_proyecto).where(ProyectoUsuario.id_usuario == current_user.id_usuario).distinct()
 
     result = await db.execute(query)
-    return result.scalars().all()
+    return result.scalars().unique().all()
 
 
 @router.get("/{id_proyecto}", response_model=ProyectoOut)
@@ -53,10 +53,10 @@ async def get_proyecto(
         else:
             query = query.where(Proyecto.id_cliente == -1)
     elif current_user.id_rol == 2:
-        query = query.join(ProyectoUsuario).where(ProyectoUsuario.id_usuario == current_user.id_usuario)
+        query = query.join(ProyectoUsuario, Proyecto.id_proyecto == ProyectoUsuario.id_proyecto).where(ProyectoUsuario.id_usuario == current_user.id_usuario).distinct()
 
     result = await db.execute(query)
-    proyecto = result.scalar_one_or_none()
+    proyecto = result.scalars().unique().one_or_none()
     if not proyecto:
         raise HTTPException(status_code=404, detail="Proyecto no encontrado")
     return proyecto
@@ -193,10 +193,10 @@ async def get_proyecto_tareas_stats(
         else:
             query = query.where(Proyecto.id_cliente == -1)
     elif current_user.id_rol == 2:
-        query = query.join(ProyectoUsuario).where(ProyectoUsuario.id_usuario == current_user.id_usuario)
+        query = query.join(ProyectoUsuario, Proyecto.id_proyecto == ProyectoUsuario.id_proyecto).where(ProyectoUsuario.id_usuario == current_user.id_usuario).distinct()
     
     res_proj = await db.execute(query)
-    project_exists = res_proj.scalar_one_or_none()
+    project_exists = res_proj.scalars().unique().one_or_none()
     if not project_exists:
         raise HTTPException(status_code=404, detail="Proyecto no encontrado o sin acceso")
 

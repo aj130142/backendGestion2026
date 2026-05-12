@@ -31,13 +31,13 @@ async def list_tareas(
         else:
             query = query.where(Tarea.id_tarea == -1)
     elif current_user.id_rol == 2:
-        query = query.join(ProyectoUsuario, Tarea.id_proyecto == ProyectoUsuario.id_proyecto).where(ProyectoUsuario.id_usuario == current_user.id_usuario)
+        query = query.join(ProyectoUsuario, Tarea.id_proyecto == ProyectoUsuario.id_proyecto).where(ProyectoUsuario.id_usuario == current_user.id_usuario).distinct()
 
     if id_proyecto:
         query = query.where(Tarea.id_proyecto == id_proyecto)
 
     result = await db.execute(query)
-    return result.scalars().all()
+    return result.scalars().unique().all()
 
 
 @router.get("/{id_tarea}", response_model=TareaOut)
@@ -60,10 +60,10 @@ async def get_tarea(
         else:
             query = query.where(Tarea.id_tarea == -1)
     elif current_user.id_rol == 2:
-        query = query.join(ProyectoUsuario, Tarea.id_proyecto == ProyectoUsuario.id_proyecto).where(ProyectoUsuario.id_usuario == current_user.id_usuario)
+        query = query.join(ProyectoUsuario, Tarea.id_proyecto == ProyectoUsuario.id_proyecto).where(ProyectoUsuario.id_usuario == current_user.id_usuario).distinct()
 
     result = await db.execute(query)
-    tarea = result.scalar_one_or_none()
+    tarea = result.scalars().unique().one_or_none()
     if not tarea:
         raise HTTPException(status_code=404, detail="Tarea no encontrada")
     return tarea
