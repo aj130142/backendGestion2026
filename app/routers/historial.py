@@ -1,3 +1,4 @@
+from typing import Optional
 from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -9,6 +10,24 @@ from app.schemas.schemas import HistorialOut
 from app.auth.auth import get_current_user
 
 router = APIRouter(prefix="/historial", tags=["Historial de Estados"])
+
+
+@router.get("/", response_model=list[HistorialOut])
+async def list_historial(
+    entidad: Optional[str] = None,
+    db: AsyncSession = Depends(get_db),
+    _: Usuario = Depends(get_current_user),
+):
+    query = select(HistorialEstado).options(
+        selectinload(HistorialEstado.estado_ant),
+        selectinload(HistorialEstado.estado_nuevo),
+        selectinload(HistorialEstado.usuario),
+    )
+    if entidad:
+        query = query.where(HistorialEstado.entidad == entidad)
+    
+    result = await db.execute(query.order_by(HistorialEstado.cambiado_en.desc()))
+    return result.scalars().all()
 
 
 @router.get("/{entidad}/{id_entidad}", response_model=list[HistorialOut])
@@ -23,6 +42,7 @@ async def get_historial(
         .options(
             selectinload(HistorialEstado.estado_ant),
             selectinload(HistorialEstado.estado_nuevo),
+            selectinload(HistorialEstado.usuario),
         )
         .where(
             HistorialEstado.entidad == entidad,

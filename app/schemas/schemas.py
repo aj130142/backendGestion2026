@@ -194,6 +194,7 @@ class HistorialOut(BaseModel):
     cambiado_en: Optional[datetime] = None
     estado_ant: Optional[EstadoOut] = None
     estado_nuevo: Optional[EstadoOut] = None
+    usuario: Optional[UsuarioOut] = None
     class Config:
         from_attributes = True
 
