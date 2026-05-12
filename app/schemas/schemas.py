@@ -188,6 +188,8 @@ class HistorialOut(BaseModel):
     id_historial: int
     entidad: str
     id_entidad: int
+    nombre_entidad: Optional[str] = None
+    descripcion: Optional[str] = None
     id_estado_ant: Optional[int] = None
     id_estado_nuevo: int
     id_usuario: int

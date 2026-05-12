@@ -105,6 +105,8 @@ async def update_proyecto(
         historial = HistorialEstado(
             entidad="proyecto",
             id_entidad=id_proyecto,
+            nombre_entidad=proyecto.nombre,
+            descripcion=proyecto.descripcion[:100] if proyecto.descripcion else None,
             id_estado_ant=old_estado,
             id_estado_nuevo=data.id_estado,
             id_usuario=current_user.id_usuario,

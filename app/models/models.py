@@ -149,6 +149,8 @@ class HistorialEstado(Base):
     id_historial = Column(Integer, primary_key=True, index=True)
     entidad = Column(String(50), nullable=False)
     id_entidad = Column(Integer, nullable=False)
+    nombre_entidad = Column(String(255))
+    descripcion = Column(Text)
     id_estado_ant = Column(Integer, ForeignKey("estados.id_estado"))
     id_estado_nuevo = Column(Integer, ForeignKey("estados.id_estado"), nullable=False)
     id_usuario = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=False)

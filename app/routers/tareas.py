@@ -138,6 +138,8 @@ async def update_tarea(
         historial = HistorialEstado(
             entidad="tarea",
             id_entidad=id_tarea,
+            nombre_entidad=tarea.nombre,
+            descripcion=tarea.descripcion[:100] if tarea.descripcion else None,
             id_estado_ant=old_estado,
             id_estado_nuevo=data.id_estado,
             id_usuario=current_user.id_usuario,
